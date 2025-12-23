@@ -7,31 +7,61 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         body { font-family: sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        #chat-container { width: 500px; height: 70vh; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
+        #chat-container { width: 500px; height: 85vh; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
         #chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
         .message { padding: 10px 15px; border-radius: 12px; max-width: 85%; line-height: 1.5; font-size: 14px; }
         .user { align-self: flex-end; background-color: #007bff; color: white; }
         .bot { align-self: flex-start; background-color: #e9e9eb; color: #333; }
-        #input-area { border-top: 1px solid #eee; padding: 15px; display: flex; gap: 10px; }
+        #input-area { border-top: 1px solid #eee; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .input-row { display: flex; gap: 10px; }
         input { flex: 1; border: 1px solid #ddd; padding: 10px; border-radius: 20px; outline: none; }
         button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
         pre { background: #2d2d2d; color: #f8f8f2; padding: 10px; border-radius: 5px; overflow-x: auto; }
-        a { color: #007bff; text-decoration: none; font-size: 12px; margin: 10px; text-align: center; }
+        
+        /* Progress Bar Styles */
+        #usage-container { padding: 0 15px; font-size: 11px; color: #666; }
+        #progress-bg { width: 100%; background: #eee; height: 6px; border-radius: 3px; margin-top: 4px; overflow: hidden; }
+        #context-bar { width: 0%; height: 100%; background: #4CAF50; transition: width 0.5s ease; }
+        
+        .nav-links { display: flex; justify-content: space-around; padding: 10px; border-bottom: 1px solid #eee; font-size: 12px; }
+        a { color: #007bff; text-decoration: none; }
     </style>
 </head>
 <body>
     <div id="chat-container">
-        <a href="/history">View Chat History</a>
+        <div class="nav-links">
+            <a href="/history">View Chat History</a>
+            <a href="#" onclick="location.reload()">New Session</a>
+        </div>
+        
         <div id="chat-box"></div>
+
+        <div id="usage-container">
+            <div style="display: flex; justify-content: space-between;">
+                <span>Context Usage</span>
+                <span id="token-label">0 / 1,000,000 tokens</span>
+            </div>
+            <div id="progress-bg">
+                <div id="context-bar"></div>
+            </div>
+        </div>
+
         <div id="input-area">
-            <input type="text" id="user-input" placeholder="Ask Gemini something...">
-            <button id="send-btn">Send</button>
+            <div class="input-row">
+                <input type="text" id="user-input" placeholder="Ask Gemini something...">
+                <button id="send-btn">Send</button>
+            </div>
         </div>
     </div>
 
     <script>
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
+        const contextBar = document.getElementById('context-bar');
+        const tokenLabel = document.getElementById('token-label');
+
+        // Generate a unique ID for this specific page session
+        const sessionId = btoa(Date.now() + Math.random()).substring(0, 12);
 
         function appendMessage(sender) {
             const msgDiv = document.createElement('div');
@@ -56,7 +86,7 @@
                 const response = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text })
+                    body: JSON.stringify({ message: text, session_id: sessionId })
                 });
 
                 const reader = response.body.getReader();
@@ -68,12 +98,24 @@
                     if (done) break;
                     const chunk = decoder.decode(value);
                     const lines = chunk.split('\n\n');
+                    
                     for (const line of lines) {
                         if (line.startsWith('data: ')) {
                             const data = JSON.parse(line.replace('data: ', ''));
-                            fullText += data.text;
-                            botDiv.innerHTML = marked.parse(fullText);
-                            chatBox.scrollTop = chatBox.scrollHeight;
+                            
+                            // Handle usage metadata packet
+                            if (data.usage !== undefined) {
+                                contextBar.style.width = data.usage + '%';
+                                tokenLabel.innerText = `${data.count.toLocaleString()} / ${data.limit.toLocaleString()} tokens`;
+                                continue;
+                            }
+
+                            // Handle text chunks
+                            if (data.text) {
+                                fullText += data.text;
+                                botDiv.innerHTML = marked.parse(fullText);
+                                chatBox.scrollTop = chatBox.scrollHeight;
+                            }
                         }
                     }
                 }
