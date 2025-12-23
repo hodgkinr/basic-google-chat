@@ -3,12 +3,21 @@ import json
 import os
 from flask import Flask, render_template, request, Response, stream_with_context, jsonify
 from google import genai
+from google.genai import types  # Import types for the config
 
 app = Flask(__name__)
 
 # Configure Gemini Client
 # Make sure GEMINI_API_KEY is in your Codespaces Secrets!
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+
+# --- ADD THIS: Function to read your system prompt ---
+def get_system_instruction():
+    try:
+        with open('system_prompt.txt', 'r') as f:
+            return f.read()
+    except FileNotFoundError:
+        return "You are a helpful assistant."
 
 def init_db():
     conn = sqlite3.connect('chat_history.db')
@@ -44,7 +53,17 @@ def chat():
         # Setup the streaming request to Gemini
         stream = client.models.generate_content_stream(
             model="gemini-2.5-flash-lite",
-            contents=user_message
+            contents=user_message,
+            config=types.GenerateContentConfig(
+                system_instruction=get_system_instruction(),
+                temperature=0.7,
+                safety_settings=[
+                    types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_LOW_AND_ABOVE"),
+                    types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_LOW_AND_ABOVE"),
+                    types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_LOW_AND_ABOVE"),
+                    types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_LOW_AND_ABOVE"),
+                ]
+            )
         )
         
         for chunk in stream:
@@ -54,11 +73,13 @@ def chat():
         
         # Save complete Bot Response after stream ends
         final_text = "".join(full_response)
-        conn = sqlite3.connect('chat_history.db')
-        c = conn.cursor()
-        c.execute("INSERT INTO messages (role, content) VALUES (?, ?)", ("bot", final_text))
-        conn.commit()
-        conn.close()
+        
+        # Open a new connection for the save (SQLite needs this inside generators)
+        save_conn = sqlite3.connect('chat_history.db')
+        save_c = save_conn.cursor()
+        save_c.execute("INSERT INTO messages (role, content) VALUES (?, ?)", ("bot", final_text))
+        save_conn.commit()
+        save_conn.close()
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
