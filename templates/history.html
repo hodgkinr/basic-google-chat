@@ -1,81 +1,89 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Transcripts</title>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat History Groups</title>
     <style>
-        body { font-family: sans-serif; padding: 30px; background: #f4f7f6; }
-        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border-bottom: 1px solid #ddd; padding: 12px; text-align: left; vertical-align: top; }
-        .role-user { color: #007bff; font-weight: bold; }
-        .role-bot { color: #28a745; font-weight: bold; }
-        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
-        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; color: white; }
-        pre { background: #f0f0f0; padding: 5px; border-radius: 3px; font-size: 12px; }
+        body { font-family: sans-serif; background-color: #f4f7f6; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .session-card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; overflow: hidden; border: 1px solid #ddd; }
+        .session-header { background: #007bff; color: white; padding: 10px 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+        .session-body { padding: 15px; max-height: 300px; overflow-y: auto; background: #fafafa; }
+        .msg-line { margin-bottom: 8px; font-size: 13px; line-height: 1.4; }
+        .role-label { font-weight: bold; text-transform: uppercase; font-size: 10px; margin-right: 5px; padding: 2px 5px; border-radius: 3px; }
+        .user-label { background: #d1ecf1; color: #0c5460; }
+        .bot-label { background: #e2e3e5; color: #383d41; }
+        .delete-btn { background: #ff4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        a { display: inline-block; margin-bottom: 20px; color: #007bff; text-decoration: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <a href="/" style="display:block; margin-bottom:20px;">← Back to Chat</a>
-        <h2>Chat History</h2>
-        <div class="controls">
-            <button class="btn" style="background: #ff4444;" onclick="deleteSelected()">Delete Selected</button>
-            <button class="btn" style="background: #28a745;" onclick="downloadCSV()">Download Selected CSV</button>
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th><input type="checkbox" id="select-all"></th>
-                    <th>Role</th>
-                    <th>Message</th>
-                </tr>
-            </thead>
-            <tbody id="table-body"></tbody>
-        </table>
+        <a href="/">&larr; Back to Chat</a>
+        <h1>Grouped Chat History</h1>
+        <div id="history-list">Loading chats...</div>
     </div>
 
     <script>
-        async function load() {
+        async function loadHistory() {
+            const res = await fetch('/api/messages');
+            const groupedChats = await res.json();
+            const listDiv = document.getElementById('history-list');
+            listDiv.innerHTML = '';
+
+            if (Object.keys(groupedChats).length === 0) {
+                listDiv.innerHTML = '<p>No history found.</p>';
+                return;
+            }
+
+            for (const [s_id, messages] of Object.entries(groupedChats)) {
+                const card = document.createElement('div');
+                card.className = 'session-card';
+                
+                // Header with Session ID and Delete Button
+                const header = document.createElement('div');
+                header.className = 'session-header';
+                header.innerHTML = `
+                    <span>Session: ${s_id}</span>
+                    <button class="delete-btn" onclick="deleteSession('${s_id}')">Delete Thread</button>
+                `;
+                
+                // Body with Message Preview
+                const body = document.createElement('div');
+                body.className = 'session-body';
+                
+                messages.forEach(m => {
+                    const line = document.createElement('div');
+                    line.className = 'msg-line';
+                    const labelClass = m.role === 'user' ? 'user-label' : 'bot-label';
+                    line.innerHTML = `<span class="role-label ${labelClass}">${m.role}</span> ${m.content}`;
+                    body.appendChild(line);
+                });
+
+                card.appendChild(header);
+                card.appendChild(body);
+                listDiv.appendChild(card);
+            }
+        }
+
+        async function deleteSession(s_id) {
+            if (!confirm("Are you sure you want to delete this entire conversation?")) return;
+            
+            // Get all IDs for this session
             const res = await fetch('/api/messages');
             const data = await res.json();
-            document.getElementById('table-body').innerHTML = data.map(m => `
-                <tr>
-                    <td><input type="checkbox" class="check" value="${m.id}"></td>
-                    <td class="role-${m.role}">${m.role.toUpperCase()}</td>
-                    <td>${m.role === 'bot' ? marked.parse(m.content) : m.content}</td>
-                </tr>
-            `).join('');
-        }
+            const idsToDelete = data[s_id].map(m => m.id);
 
-        async function deleteSelected() {
-            const ids = Array.from(document.querySelectorAll('.check:checked')).map(c => c.value);
-            if (!ids.length || !confirm("Delete selected?")) return;
             await fetch('/api/delete', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ids})
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: idsToDelete })
             });
-            load();
+            loadHistory();
         }
 
-        function downloadCSV() {
-            const rows = Array.from(document.querySelectorAll('.check:checked')).map(c => {
-                const tr = c.closest('tr');
-                return [tr.cells[1].innerText, `"${tr.cells[2].innerText.replace(/"/g, '""')}"`].join(',');
-            });
-            if (!rows.length) return alert("Select messages first");
-            const blob = new Blob(["Role,Content\n" + rows.join("\n")], {type: 'text/csv'});
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = 'history.csv'; a.click();
-        }
-
-        document.getElementById('select-all').onclick = (e) => {
-            document.querySelectorAll('.check').forEach(c => c.checked = e.target.checked);
-        };
-
-        load();
+        loadHistory();
     </script>
 </body>
 </html>

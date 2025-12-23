@@ -28,7 +28,6 @@ def get_system_instruction():
 def init_db():
     conn = sqlite3.connect('chat_history.db')
     c = conn.cursor()
-    # Added session_id column
     c.execute('''CREATE TABLE IF NOT EXISTS messages 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                   role TEXT, 
@@ -53,57 +52,52 @@ def chat():
     user_message = data.get("message")
     session_id = data.get("session_id")
     model_id = "gemini-2.5-flash-lite"
-    
-    # 1. Pull ONLY this session's history for context and counting
-    conn = sqlite3.connect('chat_history.db')
-    c = conn.cursor()
-    c.execute("SELECT role, content FROM messages WHERE session_id = ?", (session_id,))
-    past_messages = c.fetchall()
+    limit = MODEL_LIMITS.get(model_id, MODEL_LIMITS["default"])
     
     # Save current user message
+    conn = sqlite3.connect('chat_history.db')
+    c = conn.cursor()
     c.execute("INSERT INTO messages (role, content, session_id) VALUES (?, ?, ?)", 
               ("user", user_message, session_id))
     conn.commit()
+    
+    # Pull ONLY this session's history for context
+    c.execute("SELECT role, content FROM messages WHERE session_id = ?", (session_id,))
+    past_messages = c.fetchall()
     conn.close()
 
-    # 2. Prepare context for token counting and Gemini
     history_for_gemini = []
     for role, content in past_messages:
         history_for_gemini.append({"role": "user" if role == "user" else "model", "parts": [{"text": content}]})
-    
-    # Current message
-    current_contents = history_for_gemini + [{"role": "user", "parts": [{"text": user_message}]}]
-
-    # 3. Count Tokens
-    limit = MODEL_LIMITS.get(model_id, MODEL_LIMITS["default"])
-    token_response = client.models.count_tokens(model=model_id, contents=current_contents)
-    total_tokens = token_response.total_tokens
-    usage_percent = round((total_tokens / limit) * 100, 4)
 
     def generate():
-        # First packet: send the usage metadata
-        yield f"data: {json.dumps({'usage': usage_percent, 'count': total_tokens, 'limit': limit})}\n\n"
-        
         full_response = []
+        last_chunk = None
+        
         stream = client.models.generate_content_stream(
             model=model_id,
-            contents=current_contents,
+            contents=history_for_gemini,
             config=types.GenerateContentConfig(
                 system_instruction=get_system_instruction(),
-                temperature=0.7,
-                safety_settings=[
-                    types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_LOW_AND_ABOVE"),
-                    types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_LOW_AND_ABOVE"),
-                    types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_LOW_AND_ABOVE"),
-                    types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_LOW_AND_ABOVE"),
-                ]
+                temperature=0.7
             )
         )
         
+        # Stream the text chunks
         for chunk in stream:
+            last_chunk = chunk # Keep track of the most recent chunk to get metadata at the end
             if chunk.text:
                 full_response.append(chunk.text)
                 yield f"data: {json.dumps({'text': chunk.text})}\n\n"
+        
+        # --- THE FIX: Capture actual usage from the LAST chunk ---
+        if last_chunk and last_chunk.usage_metadata:
+            meta = last_chunk.usage_metadata
+            yield f"data: {json.dumps({
+                'usage': round((meta.total_token_count / limit) * 100, 4), 
+                'count': meta.total_token_count, 
+                'limit': limit
+            })}\n\n"
         
         # Save Bot Response to DB
         final_text = "".join(full_response)
@@ -121,10 +115,20 @@ def get_messages():
     conn = sqlite3.connect('chat_history.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("SELECT * FROM messages ORDER BY id DESC")
-    messages = [dict(row) for row in c.fetchall()]
+    # Order by session_id so we can group them easily
+    c.execute("SELECT * FROM messages ORDER BY session_id DESC, id ASC")
+    rows = [dict(row) for row in c.fetchall()]
     conn.close()
-    return jsonify(messages)
+
+    # Group messages by session_id
+    grouped_chats = {}
+    for msg in rows:
+        s_id = msg['session_id']
+        if s_id not in grouped_chats:
+            grouped_chats[s_id] = []
+        grouped_chats[s_id].append(msg)
+        
+    return jsonify(grouped_chats)
 
 @app.route('/api/delete', methods=['POST'])
 def delete_messages():

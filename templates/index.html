@@ -17,12 +17,9 @@
         input { flex: 1; border: 1px solid #ddd; padding: 10px; border-radius: 20px; outline: none; }
         button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
         pre { background: #2d2d2d; color: #f8f8f2; padding: 10px; border-radius: 5px; overflow-x: auto; }
-        
-        /* Progress Bar Styles */
         #usage-container { padding: 0 15px; font-size: 11px; color: #666; }
         #progress-bg { width: 100%; background: #eee; height: 6px; border-radius: 3px; margin-top: 4px; overflow: hidden; }
-        #context-bar { width: 0%; height: 100%; background: #4CAF50; transition: width 0.5s ease; }
-        
+        #context-bar { width: 0%; height: 100%; background: #4CAF50; transition: width 0.8s ease; } /* Slower transition for "jumping" counts */
         .nav-links { display: flex; justify-content: space-around; padding: 10px; border-bottom: 1px solid #eee; font-size: 12px; }
         a { color: #007bff; text-decoration: none; }
     </style>
@@ -33,19 +30,14 @@
             <a href="/history">View Chat History</a>
             <a href="#" onclick="location.reload()">New Session</a>
         </div>
-        
         <div id="chat-box"></div>
-
         <div id="usage-container">
             <div style="display: flex; justify-content: space-between;">
                 <span>Context Usage</span>
                 <span id="token-label">0 / 1,000,000 tokens</span>
             </div>
-            <div id="progress-bg">
-                <div id="context-bar"></div>
-            </div>
+            <div id="progress-bg"><div id="context-bar"></div></div>
         </div>
-
         <div id="input-area">
             <div class="input-row">
                 <input type="text" id="user-input" placeholder="Ask Gemini something...">
@@ -60,7 +52,6 @@
         const contextBar = document.getElementById('context-bar');
         const tokenLabel = document.getElementById('token-label');
 
-        // Generate a unique ID for this specific page session
         const sessionId = btoa(Date.now() + Math.random()).substring(0, 12);
 
         function appendMessage(sender) {
@@ -75,8 +66,7 @@
             const text = userInput.value.trim();
             if (!text) return;
 
-            const userDiv = appendMessage('user');
-            userDiv.innerText = text;
+            appendMessage('user').innerText = text;
             userInput.value = '';
 
             const botDiv = appendMessage('bot');
@@ -103,15 +93,13 @@
                         if (line.startsWith('data: ')) {
                             const data = JSON.parse(line.replace('data: ', ''));
                             
-                            // Handle usage metadata packet
+                            // Check for metadata update
                             if (data.usage !== undefined) {
                                 contextBar.style.width = data.usage + '%';
                                 tokenLabel.innerText = `${data.count.toLocaleString()} / ${data.limit.toLocaleString()} tokens`;
-                                continue;
-                            }
-
-                            // Handle text chunks
-                            if (data.text) {
+                            } 
+                            // Handle text
+                            else if (data.text) {
                                 fullText += data.text;
                                 botDiv.innerHTML = marked.parse(fullText);
                                 chatBox.scrollTop = chatBox.scrollHeight;
