@@ -52,6 +52,7 @@ def chat():
     user_message = data.get("message")
     session_id = data.get("session_id")
     model_id = "gemini-2.5-flash-lite"
+    #model_id = "gemini-flash-lite-latest"
     limit = MODEL_LIMITS.get(model_id, MODEL_LIMITS["default"])
     
     # Save current user message
