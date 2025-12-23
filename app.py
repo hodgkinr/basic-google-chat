@@ -43,7 +43,7 @@ def chat():
         full_response = []
         # Setup the streaming request to Gemini
         stream = client.models.generate_content_stream(
-            model="gemini-3-flash",
+            model="gemini-2.5-flash-lite",
             contents=user_message
         )
         

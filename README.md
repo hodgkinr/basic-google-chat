@@ -20,64 +20,46 @@ A full-stack AI chatbot built with Python, Flask, and the Google Gemini 3 Flash 
 In GitHub Codespaces, go to **Settings > Secrets and variables > Codespaces** and add:
 - `GEMINI_API_KEY`: Your Google API Key.
 
-🔑 Step-by-Step: Adding your Gemini Key
-Go to your Repository on GitHub.com: Make sure you are on the main page of your project (not inside the Codespace editor).
+## 🔑 Step-by-Step: Adding your Gemini Key
 
-Click "Settings": This is the last tab in the top navigation bar (next to "Insights").
+1. **Go to your Repository on GitHub.com**: Navigate to the main page of your project (outside of the Codespace editor).
+2. **Click "Settings"**: This is the last tab in the top navigation bar (next to "Insights").
+3. **Find "Secrets and variables"**: On the left-hand sidebar, scroll down to the **Security** section. Click the arrow next to **Secrets and variables** to expand it.
+4. **Click "Codespaces"**: You will see three options (Actions, Codespaces, Dependabot). **You must choose Codespaces** for the key to work inside your editor.
+5. **New Repository Secret**: Click the green button that says `New repository secret`.
+6. **Enter the Details**:
+   - **Name**: `GEMINI_API_KEY` (It must be exactly this for the `app.py` code to find it).
+   - **Secret**: Paste your key from Google AI Studio here.
+7. **Add Secret**: Click the `Add secret` button.
 
-Find "Secrets and variables": On the left-hand sidebar, scroll down to the Security section. Click the arrow next to Secrets and variables to expand it.
+---
 
-Click "Codespaces": You will see three options (Actions, Codespaces, Dependabot). You must choose Codespaces for the key to work inside your editor.
-
-New Repository Secret: Click the green button that says New repository secret.
-
-Enter the Details:
-
-Name: GEMINI_API_KEY (It must be exactly this for the app.py code to find it).
-
-Secret: Paste your key from Google AI Studio here.
-
-Add Secret: Click the Add secret button.
-
-🔄 Important: Refreshing your Codespace
+## 🔄 Important: Refreshing your Codespace
 GitHub does not automatically "push" new secrets into an active Codespace for security reasons.
 
-Go back to your open Codespace tab.
+1. Go back to your open **Codespace tab**.
+2. A notification might pop up in the bottom right saying *"Secrets have changed. Reload to apply."* Click **Reload**.
+3. **If you don't see the popup**, you must perform a **Full Stop** to force the environment to pull in your new key.
 
-A notification might pop up in the bottom right saying "Secrets have changed. Reload to apply." Click Reload.
+### How to perform a "Full Stop"
+1. **Focus the Editor**: Click anywhere inside the dark area of the code editor.
+2. **Open the Command Palette**:
+   - **Windows/Linux**: `Ctrl + Shift + P`
+   - **Mac**: `Cmd + Shift + P`
+   - *Alternative*: Click the **Gear Icon** ⚙️ (bottom-left) and select **Command Palette**.
+3. **Run the Stop Command**: Type `Stop` into the bar and select `Codespaces: Stop Codespace`.
+4. **Restart**: Once the screen goes dark, **Refresh your browser tab**. This forces the machine to boot from scratch with the new `GEMINI_API_KEY`.
 
-If you don't see the popup: Close the Codespace tab and reopen it from your GitHub repo. This "reboots" the environment with your new key.
+---
 
-🧪 How to verify it worked
+## 🧪 How to verify it worked
 To make sure the key is actually there, type this into your Codespace terminal:
 
+```bash
 echo $GEMINI_API_KEY
-If it prints out your key (or a part of it), you are ready to run python app.py!
-
-If that doesn't work you need to force a stop to codespaces. 
-
-inside the Chrome/browser window where your Codespace is running.
-
-Click anywhere inside the dark area of the code editor to make sure it's "focused."
-
-Press the shortcut:
-
-Windows/Linux: Ctrl + Shift + P
-
-Mac: Cmd + Shift + P
-
-Alternative (No Keyboard): If the shortcut isn't working, click the Gear Icon ⚙️ in the bottom-left corner of the Codespace and select Command Palette.
-
-🔄 How to perform the "Full Stop"
-Once that little search bar pops up at the top of your screen:
-
-Type the word "Stop" into the bar.
-
-Click on the option that says: Codespaces: Stop Codespace.
-
-The screen will turn dark with a "Codespace stopped" message.
-
-Now, Refresh your browser tab (the standard Chrome refresh button). This will force the machine to boot from scratch and pull in your new GEMINI_API_KEY.
+```
+[!TIP] If it prints out your key (or stars ***), you are ready! If it prints a blank line, the secret hasn't loaded yet—repeat the "Full Stop" steps above.
+---
 
 ### 3. Installation
 
@@ -95,6 +77,14 @@ pip install -r requirements.txt
 python app.py
 ```
 The app will run on http://127.0.0.1:5000.
+
+### 5. Gotchas
+If you dont get a response from the chat, it's likely that the model name isn't exactly correct in app.py. The line is model="gemini-2.5-flash-lite". You can see what available models your api key has access to by running
+
+```bash
+python list_models.py
+```
+Then find the one you want, copy and paste it, and you're good to go. 
 
 📂 Project Structure
 
