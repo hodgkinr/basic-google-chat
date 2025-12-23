@@ -20,6 +20,40 @@ A full-stack AI chatbot built with Python, Flask, and the Google Gemini 3 Flash 
 In GitHub Codespaces, go to **Settings > Secrets and variables > Codespaces** and add:
 - `GEMINI_API_KEY`: Your Google API Key.
 
+🔑 Step-by-Step: Adding your Gemini Key
+Go to your Repository on GitHub.com: Make sure you are on the main page of your project (not inside the Codespace editor).
+
+Click "Settings": This is the last tab in the top navigation bar (next to "Insights").
+
+Find "Secrets and variables": On the left-hand sidebar, scroll down to the Security section. Click the arrow next to Secrets and variables to expand it.
+
+Click "Codespaces": You will see three options (Actions, Codespaces, Dependabot). You must choose Codespaces for the key to work inside your editor.
+
+New Repository Secret: Click the green button that says New repository secret.
+
+Enter the Details:
+
+Name: GEMINI_API_KEY (It must be exactly this for the app.py code to find it).
+
+Secret: Paste your key from Google AI Studio here.
+
+Add Secret: Click the Add secret button.
+
+🔄 Important: Refreshing your Codespace
+GitHub does not automatically "push" new secrets into an active Codespace for security reasons.
+
+Go back to your open Codespace tab.
+
+A notification might pop up in the bottom right saying "Secrets have changed. Reload to apply." Click Reload.
+
+If you don't see the popup: Close the Codespace tab and reopen it from your GitHub repo. This "reboots" the environment with your new key.
+
+🧪 How to verify it worked
+To make sure the key is actually there, type this into your Codespace terminal:
+
+echo $GEMINI_API_KEY
+If it prints out your key (or a part of it), you are ready to run python app.py!
+
 ### 3. Installation
 
 ```bash
