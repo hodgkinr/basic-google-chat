@@ -54,6 +54,31 @@ To make sure the key is actually there, type this into your Codespace terminal:
 echo $GEMINI_API_KEY
 If it prints out your key (or a part of it), you are ready to run python app.py!
 
+If that doesn't work you need to force a stop to codespaces. 
+
+inside the Chrome/browser window where your Codespace is running.
+
+Click anywhere inside the dark area of the code editor to make sure it's "focused."
+
+Press the shortcut:
+
+Windows/Linux: Ctrl + Shift + P
+
+Mac: Cmd + Shift + P
+
+Alternative (No Keyboard): If the shortcut isn't working, click the Gear Icon ⚙️ in the bottom-left corner of the Codespace and select Command Palette.
+
+🔄 How to perform the "Full Stop"
+Once that little search bar pops up at the top of your screen:
+
+Type the word "Stop" into the bar.
+
+Click on the option that says: Codespaces: Stop Codespace.
+
+The screen will turn dark with a "Codespace stopped" message.
+
+Now, Refresh your browser tab (the standard Chrome refresh button). This will force the machine to boot from scratch and pull in your new GEMINI_API_KEY.
+
 ### 3. Installation
 
 ```bash
