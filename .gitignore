@@ -1,0 +1,15 @@
+# Local Database
+chat_history.db
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Environments
+.venv/
+env/
+venv/
+ENV/
+
+# Secrets
+.env

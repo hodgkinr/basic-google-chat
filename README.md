@@ -21,6 +21,12 @@ In GitHub Codespaces, go to **Settings > Secrets and variables > Codespaces** an
 - `GEMINI_API_KEY`: Your Google API Key.
 
 ### 3. Installation
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
 ```bash
 pip install -r requirements.txt
 ```
